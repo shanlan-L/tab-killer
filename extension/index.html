@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Killer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-orb orb-one"></div>
+  <div class="background-orb orb-two"></div>
+  <div class="background-grid"></div>
+
+  <div class="shell">
+    <header class="hero panel">
+      <div class="hero-copy">
+        <h1 id="heroTitle">Tab Killer</h1>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-num" id="statTotalTabs">0</span>
+          <span class="hero-stat-label" id="statTotalTabsLabel">Tabs</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-num" id="statTabGroups">0</span>
+          <span class="hero-stat-label" id="statTabGroupsLabel">Tab Groups</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-num" id="statAutoGroups">0</span>
+          <span class="hero-stat-label" id="statAutoGroupsLabel">Auto Groups</span>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <button class="toolbar-button cleanup-button" type="button" data-action="close-duplicate-tabs" id="duplicateCleanupButton" hidden>
+          <span class="cleanup-indicator" aria-hidden="true"></span>
+          <span id="duplicateCleanupLabel">Close duplicates</span>
+        </button>
+
+        <span class="toolbar-note" id="duplicateCleanupHint" hidden>Tab Killer ×2</span>
+
+        <button class="toolbar-button locale-toggle" type="button" data-action="toggle-locale">
+          <span class="toolbar-code" id="localeToggleCode">EN</span>
+          <span id="localeToggleLabel">中文</span>
+        </button>
+
+        <button class="toolbar-button theme-toggle" type="button" data-action="toggle-theme">
+          <span class="theme-toggle-indicator" aria-hidden="true"></span>
+          <span id="themeToggleLabel">Follow browser</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="stack">
+      <section class="panel section-panel">
+        <div class="section-top">
+          <div>
+            <p class="section-kicker" id="tabGroupsKicker">Chrome Tab Groups</p>
+          </div>
+          <div class="section-summary" id="tabGroupsSummary">0 groups</div>
+        </div>
+
+        <div class="cards-grid" id="tabGroupsGrid"></div>
+
+        <div class="empty-state" id="tabGroupsEmpty" hidden>
+          <div>
+            <h3 id="tabGroupsEmptyTitle">No tab groups yet</h3>
+            <p id="tabGroupsEmptyBody">Create a native Chrome tab group and it will appear here with its title, color, and tabs.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-panel">
+        <div class="section-top">
+          <div>
+            <p class="section-kicker" id="autoGroupsKicker">Automatic Grouping</p>
+          </div>
+          <div class="section-summary" id="autoGroupsSummary">0 clusters</div>
+        </div>
+
+        <div class="cards-grid" id="autoGroupsGrid"></div>
+
+        <div class="empty-state" id="autoGroupsEmpty" hidden>
+          <div>
+            <h3 id="autoGroupsEmptyTitle">Everything is grouped</h3>
+            <p id="autoGroupsEmptyBody">Once tabs fall outside native Chrome tab groups, Tab Killer will cluster them by domain here.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
