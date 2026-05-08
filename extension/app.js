@@ -741,32 +741,34 @@ function renderGroupCard(group) {
     : t('group.nativeFootnote');
 
   return `
-    <article class="glass-card" style="${style}">
-      <div class="card-header">
-        <div class="card-title-block">
+    <section class="letter-group" style="${style}">
+      <div class="letter-header">
+        <div class="letter-title-block">
           <span class="color-dot" aria-hidden="true"></span>
           <div>
-            <p class="card-caption">${escapeHtml(t('chromeGroup.caption'))}</p>
             <h3>${escapeHtml(group.title || t('fallback.untitledGroup'))}</h3>
+            <p class="letter-caption">${escapeHtml(t('chromeGroup.caption'))}</p>
           </div>
         </div>
-        <div class="card-meta">${pills.join('')}</div>
+        <div class="letter-actions">
+          <div class="letter-meta">${pills.join('')}</div>
+          <button
+            class="icon-button group-close-btn"
+            type="button"
+            data-action="close-group-tabs"
+            data-tab-ids="${serializeIds(group.tabs.map(tab => tab.id))}"
+            title="${escapeHtml(t('button.closeGroup'))}"
+            aria-label="${escapeHtml(t('button.closeGroup'))}"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="tab-stack">${renderTabRows(group.tabs, 6)}</div>
-
-      <div class="card-footer">
-        <span class="card-footnote">${escapeHtml(footnote)}</span>
-        <button
-          class="ghost-button"
-          type="button"
-          data-action="close-group-tabs"
-          data-tab-ids="${serializeIds(group.tabs.map(tab => tab.id))}"
-        >
-          ${escapeHtml(t('button.closeGroup'))}
-        </button>
+      <div class="letter-body">
+        <div class="tab-stack">${renderTabRows(group.tabs, 8)}</div>
       </div>
-    </article>
+    </section>
   `;
 }
 
@@ -779,30 +781,30 @@ function renderAutoGroupCard(group) {
   }
 
   return `
-    <article class="glass-card" style="${style}">
-      <div class="card-header">
-        <div class="card-title-block card-title-block-auto">
-          <div>
-            <h3>${escapeHtml(formatAutoGroupLabel(group))}</h3>
-          </div>
+    <section class="letter-group" style="${style}">
+      <div class="letter-header">
+        <div class="letter-title-block">
+          <h3>${escapeHtml(formatAutoGroupLabel(group))}</h3>
         </div>
-        <div class="card-meta">${pills.join('')}</div>
+        <div class="letter-actions">
+          <div class="letter-meta">${pills.join('')}</div>
+          <button
+            class="icon-button group-close-btn"
+            type="button"
+            data-action="close-group-tabs"
+            data-tab-ids="${serializeIds(group.tabs.map(tab => tab.id))}"
+            title="${escapeHtml(t('button.closeCluster'))}"
+            aria-label="${escapeHtml(t('button.closeCluster'))}"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="tab-stack">${renderTabRows(group.tabs, 7)}</div>
-
-      <div class="card-footer">
-        <span class="card-footnote">${escapeHtml(group.domainDisplay)}</span>
-        <button
-          class="ghost-button"
-          type="button"
-          data-action="close-group-tabs"
-          data-tab-ids="${serializeIds(group.tabs.map(tab => tab.id))}"
-        >
-          ${escapeHtml(t('button.closeCluster'))}
-        </button>
+      <div class="letter-body">
+        <div class="tab-stack">${renderTabRows(group.tabs, 10)}</div>
       </div>
-    </article>
+    </section>
   `;
 }
 
