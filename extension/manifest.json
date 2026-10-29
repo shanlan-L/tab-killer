@@ -1,16 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Tab Killer",
-  "version": "1.0.0",
-  "description": "Keep tabs on your tabs. Tab Killer turns your new tab page into a clear dashboard for grouped tabs and fast cleanup.",
+  "version": "1.1.0",
+  "minimum_chrome_version": "121",
+  "description": "Keep tabs on your tabs. Tab Killer turns your new tab page into a ledger of open tabs, sorted by when you last used them, with a place to park what you are not using.",
   "permissions": ["tabs", "storage", "favicon", "tabGroups"],
   "chrome_url_overrides": { "newtab": "index.html" },
   "background": { "service_worker": "background.js" },
   "action": {
-    "default_title": "Tab Killer",
+    "default_title": "Park this window (Tab Killer)",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png"
+    }
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "Park this window"
     }
   },
   "icons": {

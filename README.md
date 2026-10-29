@@ -1,83 +1,63 @@
 # Tab Killer
 
-Tab Killer is a Chrome new-tab extension built for one job: making a crowded browser readable again.
+Tab Killer is a Chrome new-tab extension for people who keep too many tabs open because closing them feels risky.
 
-It turns every new tab into a lightweight dashboard where:
-
-- Native Chrome tab groups stay visible and actionable
-- Ungrouped tabs are clustered automatically by hostname
-- Duplicate links can be cleaned up in one click
-- Duplicate Tab Killer pages can be cleaned up too
-- Theme follows the browser by default
-- Interface supports both English and Chinese
+Every new tab shows a ledger of what is open, when you last used it, and a place to **park** tabs: they close, wait in a side rail, and come back with one click.
 
 No server. No account. No build step. Just a local Chrome extension.
 
 ## Product Positioning
 
-Tab Killer is not a bookmark manager, tab archiver, or workspace platform.
+Tab Killer is not a bookmark manager or a workspace platform. It answers two questions fast:
 
-It is a fast cleanup surface for people who:
+- What have I not touched in a week?
+- Can I put it away without losing it?
 
-- Keep many tabs open across multiple windows
-- Already use Chrome tab groups, but still lose track of everything else
-- Want a global overview without managing tabs one by one
-- Need a low-friction way to close noise and keep signal
-
-The design goal is simple:
-
-`open new tab -> see the whole browser -> clean it up quickly`
+`open new tab -> see what is idle -> park it -> restore it when you need it`
 
 ## What It Does
 
-### 1. Chrome Tab Groups on Top
+### Park instead of close
 
-If you already use native Chrome tab groups, Tab Killer keeps them intact and shows:
+- **Park** a Chrome tab group, a site, a single tab, or every idle tab at once
+- Parked tabs are saved first, then closed, so a storage failure never loses a tab
+- Every park shows an **Undo** toast
+- The **Parked** rail lists each session with its links; restore all, open one, copy, or delete (with undo)
+- Restoring a parked Chrome group recreates the group with its title and color
+- **Toolbar button** (default shortcut `Alt+Shift+P`) parks the whole current window, skipping pinned tabs
 
-- Group title
-- Group color
-- Tabs inside the group
-- Quick actions for closing one tab or the whole group
+### See what is idle
 
-This means you keep Chrome's native grouping model instead of replacing it.
+- Each row shows how long ago you last used the tab (Chrome 121+ `lastAccessed`)
+- Rows fade as they age; amber marks 7 days+, red marks 30 days+
+- **By last used** view buckets tabs into today, this week, idle 7 days+, idle 30 days+
+- **Park N idle** in the top bar parks every unpinned, silent, inactive tab older than 7 days
 
-### 2. Automatic Grouping Below
+### Grouping
 
-Tabs that are not inside a native Chrome group are clustered automatically.
+- Native Chrome tab groups come first, with their title and color
+- **Custom groups** (Group rules panel, from the gear menu or above the list): name a group, pick a color, list URL rules one per line: a domain (`claude.ai`, subdomains included), a host with port (`localhost:3000`), a path prefix (`github.com/anthropics`), or a wildcard (`*.google.com/document`). Matching tabs land in that group; the top rule wins. Rules only change this page, never your Chrome tabs, and tabs already in a Chrome group stay there
+- `localhost`, `127.0.0.1`, and `.local` tabs share one **Dev servers** section, sorted by port
+- Other tabs group by site; sites with a single tab share an **Other sites** section
+- Duplicate pages carry a `2x` tag, and **Close duplicates** keeps one copy of each
 
-Current grouping behavior:
+### Search, keyboard, and Markdown
 
-- Same hostname is grouped together, even across different browser windows
-- `localhost` and local dev domains stay split by host/port when useful
-- Auto groups use a neutral gray visual style so they do not conflict with native Chrome group colors
+| Key | Action |
+|---|---|
+| `/` | Search titles, URLs, and site names |
+| `j` / `k` | Move between rows |
+| `Enter` | Jump to the tab |
+| `s` | Park the focused tab |
+| `x` | Close the focused tab |
+| `c` | Copy the focused tab as a Markdown link |
+| `v` | Switch between By group and By last used |
 
-### 3. One-Click Duplicate Cleanup
+Each section and each parked session can be copied as a Markdown list, ready to paste into a coding agent or a note.
 
-Tab Killer detects repeated links globally and surfaces a cleanup action in the top toolbar.
+### Settings
 
-It will:
-
-- Keep one copy of each duplicated page
-- Close the extra copies
-- Include duplicate Tab Killer pages in the cleanup flow
-
-### 4. Fast Tab Actions
-
-From the dashboard you can:
-
-- Focus any tab
-- Close a single tab
-- Close a whole native Chrome group
-- Close a whole automatic group
-- Expand long groups to reveal more tabs
-
-## UI Behavior
-
-- Layout is vertical: native tab groups first, auto groups second
-- Theme follows browser/system preference by default
-- Theme can still be manually overridden from the UI
-- Language can be toggled between English and Chinese
-- The extension updates as tabs, groups, titles, and states change
+Theme (system, light, dark), language (English, Chinese), and Group rules live in the gear menu.
 
 ## Privacy
 
@@ -104,13 +84,14 @@ cd tab-killer
 4. Click `Load unpacked`
 5. Select the `extension/` folder
 
-Then open a new tab and Tab Killer will replace the default new-tab page.
+Then open a new tab and Tab Killer will replace the default new-tab page. Requires Chrome 121 or newer.
 
 ## Tech Notes
 
 - Chrome Extension Manifest V3
 - `chrome_url_overrides.newtab` for new-tab replacement
 - `chrome.tabs`, `chrome.tabGroups`, `chrome.storage.local`
+- Parked sessions are stored one per key (`parked:<id>`) in `chrome.storage.local`; group rules live under `groupRules`
 - Plain HTML/CSS/JavaScript, no build pipeline
 
 ## Repository Structure
@@ -119,9 +100,10 @@ Then open a new tab and Tab Killer will replace the default new-tab page.
 extension/
   manifest.json
   index.html
-  app.js
+  app.js          new tab page
+  sessions.js     parked session storage, shared with the service worker
   style.css
-  background.js
+  background.js   badge count and toolbar "park window"
 ```
 
 ## License

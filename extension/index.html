@@ -7,92 +7,118 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip-link" href="#dashboard">Skip to dashboard</a>
+  <a class="skip-link" href="#dashboard">Skip to tabs</a>
 
-  <div class="background-grid"></div>
-
-  <div class="shell">
-    <header class="hero panel">
-      <div class="hero-copy">
-        <h1 id="heroTitle">Tab Killer</h1>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1 id="appTitle">Tab Killer</h1>
       </div>
 
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <span class="hero-stat-num" id="statTotalTabs">0</span>
-          <span class="hero-stat-label" id="statTotalTabsLabel">Tabs</span>
-        </div>
-        <div class="hero-stat">
-          <span class="hero-stat-num" id="statTabGroups">0</span>
-          <span class="hero-stat-label" id="statTabGroupsLabel">Tab Groups</span>
-        </div>
-        <div class="hero-stat">
-          <span class="hero-stat-num" id="statAutoGroups">0</span>
-          <span class="hero-stat-label" id="statAutoGroupsLabel">Auto Groups</span>
-        </div>
-      </div>
+      <p class="status-line" id="statusLine" aria-live="polite"></p>
 
-      <div class="control-row">
-        <button class="toolbar-button cleanup-button" type="button" data-action="close-duplicate-tabs" id="duplicateCleanupButton" hidden>
-          <span class="cleanup-indicator" aria-hidden="true"></span>
-          <span id="duplicateCleanupLabel">Close duplicates</span>
+      <label class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>
+        <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+        <kbd aria-hidden="true">/</kbd>
+      </label>
+
+      <div class="top-actions">
+        <button class="button is-primary" type="button" data-action="park-idle" id="parkIdleButton" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h11M12 7l5 5-5 5M20 5v14"></path></svg>
+          <span id="parkIdleLabel"></span>
         </button>
-
-        <span class="toolbar-note" id="duplicateCleanupHint" hidden>Tab Killer ×2</span>
-
-        <button class="toolbar-button locale-toggle" type="button" data-action="toggle-locale">
-          <span class="toolbar-code" id="localeToggleCode">EN</span>
-          <span id="localeToggleLabel">中文</span>
+        <button class="button" type="button" data-action="close-duplicate-tabs" id="duplicateCleanupButton" hidden>
+          <span class="button-dot" aria-hidden="true"></span>
+          <span id="duplicateCleanupLabel"></span>
         </button>
-
-        <button class="toolbar-button theme-toggle" type="button" data-action="toggle-theme">
-          <span class="theme-toggle-indicator" aria-hidden="true"></span>
-          <span id="themeToggleLabel">Follow browser</span>
+        <button class="icon-button" type="button" id="settingsButton" popovertarget="settingsMenu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.5"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg>
         </button>
       </div>
     </header>
 
-    <main class="stack" id="dashboard">
-      <section class="panel section-panel">
-        <div class="section-top">
-          <div>
-            <p class="section-kicker" id="tabGroupsKicker">Chrome Tab Groups</p>
+    <div class="menu" id="settingsMenu" popover>
+      <p class="menu-label" id="settingsThemeLabel">Appearance</p>
+      <div class="segmented">
+        <button type="button" data-action="set-theme" data-value="system" id="themeSystemLabel">System</button>
+        <button type="button" data-action="set-theme" data-value="light" id="themeLightLabel">Light</button>
+        <button type="button" data-action="set-theme" data-value="dark" id="themeDarkLabel">Dark</button>
+      </div>
+      <p class="menu-label" id="settingsLanguageLabel">Language</p>
+      <div class="segmented">
+        <button type="button" data-action="set-locale" data-value="zh" lang="zh-CN">中文</button>
+        <button type="button" data-action="set-locale" data-value="en" lang="en">English</button>
+      </div>
+      <button class="menu-link" type="button" data-action="open-rules">
+        <span id="rulesMenuLabel">Group rules</span>
+        <span aria-hidden="true">→</span>
+      </button>
+    </div>
+
+    <aside class="rules-panel" id="rulesPanel" role="dialog" aria-labelledby="rulesTitle" hidden>
+      <div class="rules-head">
+        <h2 id="rulesTitle">Group rules</h2>
+        <button class="icon-button" type="button" data-action="close-rules" id="rulesCloseButton" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>
+        </button>
+      </div>
+      <p class="rules-hint" id="rulesHint"></p>
+      <div id="rulesList"></div>
+      <p class="rules-empty" id="rulesEmpty" hidden></p>
+      <button class="button" type="button" data-action="add-rule" id="addRuleButton">
+        <span aria-hidden="true">+</span>
+        <span id="addRuleLabel">New group</span>
+      </button>
+    </aside>
+
+    <div class="layout">
+      <main class="board" id="dashboard" tabindex="-1">
+        <div class="board-head">
+          <div class="segmented">
+            <button type="button" data-action="set-view" data-value="groups" id="viewGroupsLabel">By group</button>
+            <button type="button" data-action="set-view" data-value="idle" id="viewIdleLabel">By last used</button>
           </div>
-          <div class="section-summary" id="tabGroupsSummary">0 groups</div>
+          <span class="board-summary" id="boardSummary"></span>
+          <button class="text-button rules-button" type="button" data-action="open-rules" id="rulesButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><rect x="14" y="5" width="4" height="4"></rect><rect x="8" y="15" width="4" height="4"></rect></svg>
+            <span id="rulesButtonLabel">Group rules</span>
+          </button>
         </div>
 
-        <div class="cards-grid" id="tabGroupsGrid"></div>
+        <div id="sections"></div>
 
-        <div class="empty-state" id="tabGroupsEmpty" hidden>
-          <div>
-            <h3 id="tabGroupsEmptyTitle">No tab groups yet</h3>
-            <p id="tabGroupsEmptyBody">Create a native Chrome tab group and it will appear here with its title, color, and tabs.</p>
+        <div class="empty-state" id="boardEmpty" hidden>
+          <h2 id="boardEmptyTitle"></h2>
+          <p id="boardEmptyBody"></p>
+        </div>
+      </main>
+
+      <aside class="rail" aria-labelledby="railTitle">
+        <div class="rail-inner">
+          <div class="rail-head">
+            <h2 id="railTitle">Parked</h2>
+            <span class="section-count" id="railCount"></span>
+          </div>
+          <div id="sessionList"></div>
+          <div class="rail-empty" id="railEmpty">
+            <p class="rail-empty-title" id="railEmptyTitle"></p>
+            <p id="railEmptyBody"></p>
           </div>
         </div>
-      </section>
+      </aside>
+    </div>
 
-      <section class="panel section-panel">
-        <div class="section-top">
-          <div>
-            <p class="section-kicker" id="autoGroupsKicker">Automatic Grouping</p>
-          </div>
-          <div class="section-summary" id="autoGroupsSummary">0 clusters</div>
-        </div>
-
-        <div class="cards-grid" id="autoGroupsGrid"></div>
-
-        <div class="empty-state" id="autoGroupsEmpty" hidden>
-          <div>
-            <h3 id="autoGroupsEmptyTitle">Everything is grouped</h3>
-            <p id="autoGroupsEmptyBody">Once tabs fall outside native Chrome tab groups, Tab Killer will cluster them by domain here.</p>
-          </div>
-        </div>
-      </section>
-    </main>
+    <footer class="key-hints" id="keyHints"></footer>
   </div>
 
-  <div class="toast" id="toast" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status">
+    <span id="toastText"></span>
+    <button class="toast-action" type="button" id="toastAction" hidden></button>
+  </div>
 
+  <script src="sessions.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
