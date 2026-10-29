@@ -1,17 +1,19 @@
 /**
- * background.js — Service Worker for Badge Updates
+ * background.js: Service Worker
  *
- * Chrome's "always-on" background script for Tab Killer.
- * Its only job: keep the toolbar badge showing the current open tab count.
+ * Two jobs:
+ *   1. Keep the toolbar badge showing the current open tab count.
+ *   2. Park the current window when the toolbar button (or its shortcut) is pressed.
  *
- * Since we no longer have a server, we query chrome.tabs directly.
- * The badge counts real web tabs (skipping chrome:// and extension pages).
- *
- * Color coding gives a quick at-a-glance health signal:
+ * Badge color gives a quick at-a-glance health signal:
  *   Green  (#3d7a4a) → 1–10 tabs  (focused, manageable)
  *   Amber  (#b8892e) → 11–20 tabs (getting busy)
  *   Red    (#b35a5a) → 21+ tabs   (time to cull!)
  */
+
+importScripts('sessions.js');
+
+const DASHBOARD_URL = chrome.runtime.getURL('index.html');
 
 // ─── Badge updater ────────────────────────────────────────────────────────────
 
@@ -59,6 +61,47 @@ async function updateBadge() {
     chrome.action.setBadgeText({ text: '' });
   }
 }
+
+// ─── Park window ──────────────────────────────────────────────────────────────
+
+function isDashboardUrl(url) {
+  return Boolean(url) && (url.startsWith(DASHBOARD_URL) || url.startsWith('chrome://newtab'));
+}
+
+/**
+ * parkWindow()
+ *
+ * Saves every unpinned web tab in the window as one parked session, then closes them
+ * and leaves the dashboard open so the window survives and the session is visible.
+ * The session is written before anything closes: if storage fails, no tab is lost.
+ */
+async function parkWindow(windowId) {
+  const tabs = await chrome.tabs.query({ windowId });
+  const parkable = tabs.filter(tab => !tab.pinned && TabKillerSessions.isParkableUrl(tab.url));
+  const dashboardTab = tabs.find(tab => tab.active && isDashboardUrl(tab.url));
+
+  if (parkable.length === 0) {
+    if (!dashboardTab) await chrome.tabs.create({ windowId, url: DASHBOARD_URL, active: true });
+    return;
+  }
+
+  const session = await TabKillerSessions.save({ kind: 'window', tabs: parkable });
+  const landingUrl = `${DASHBOARD_URL}?parked=${session.id}`;
+
+  if (dashboardTab) {
+    await chrome.tabs.update(dashboardTab.id, { url: landingUrl });
+  } else {
+    await chrome.tabs.create({ windowId, url: landingUrl, active: true });
+  }
+
+  await chrome.tabs.remove(parkable.map(tab => tab.id));
+}
+
+chrome.action.onClicked.addListener(tab => {
+  parkWindow(tab.windowId).catch(error => {
+    console.error('[tab-killer] failed to park window', error);
+  });
+});
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
