@@ -143,6 +143,7 @@ const I18N = {
     'bucket.idle': 'Idle 7 days+',
     'bucket.stale': 'Idle 30 days+',
     'bucket.unknown': 'No usage data',
+    'section.workflow': ({ time }) => `workflow · opened ${time}`,
     'empty.board.title': 'No web pages open',
     'empty.board.body': 'Open a few pages and they show up here, grouped and sorted by when you last used them.',
     'empty.search.title': ({ query }) => `Nothing matches "${query}"`,
@@ -250,6 +251,7 @@ const I18N = {
     'bucket.idle': '闲置 7 天以上',
     'bucket.stale': '闲置 30 天以上',
     'bucket.unknown': '没有使用记录',
+    'section.workflow': ({ time }) => `工作流 · ${time} 打开`,
     'empty.board.title': '没有打开的网页',
     'empty.board.body': '打开几个网页后，它们会按分组和最后使用时间出现在这里。',
     'empty.search.title': ({ query }) => `没有匹配“${query}”的标签页`,
@@ -689,6 +691,7 @@ function normalizeTab(tab) {
     audible: Boolean(tab.audible),
     // Chrome 121+ reports when the tab was last focused; older builds leave it undefined.
     lastAccessed: Number.isFinite(tab.lastAccessed) ? tab.lastAccessed : null,
+    workflowId: null,
     duplicateCount: 1,
   };
 }
@@ -716,10 +719,14 @@ function freshnessOf(age) {
   return 'stale';
 }
 
-function isIdleTab(tab, now) {
+function isIdleTab(tab, now, workflowsById = new Map()) {
   if (tab.pinned || tab.audible || tab.active) return false;
   const age = tabAge(tab, now);
-  return age !== null && age >= IDLE_AFTER_MS;
+  if (age === null || age < IDLE_AFTER_MS) return false;
+
+  // Parking idle tabs must not split a workflow that is still in use.
+  const workflow = workflowOf(tab, workflowsById);
+  return !workflow || (workflow.age !== null && workflow.age >= IDLE_AFTER_MS);
 }
 
 function formatAge(age) {
@@ -802,6 +809,8 @@ async function buildDashboardSnapshot() {
     tab.duplicateCount = duplicateCleanup.countByUrl.get(normalizeDuplicateUrl(tab.url)) || 1;
   }
 
+  const workflowsById = buildWorkflows(tabs, await loadTabOrigins(), now);
+
   const groupTabsById = new Map();
   const ungroupedTabs = [];
 
@@ -848,8 +857,66 @@ async function buildDashboardSnapshot() {
     tabGroups,
     ungroupedTabs,
     duplicateCleanup,
-    idleTabs: tabs.filter(tab => isIdleTab(tab, now)),
+    workflowsById,
+    idleTabs: tabs.filter(tab => isIdleTab(tab, now, workflowsById)),
   };
+}
+
+// ─── Workflows ───────────────────────────────────────────────────────────────
+//
+// Tabs opened in one burst stay together in the idle view: the whole workflow sits in the
+// bucket of its most recently used tab, and it only counts as idle once every tab in it is.
+
+async function loadTabOrigins() {
+  try {
+    return await TabKillerWorkflows.loadOrigins();
+  } catch {
+    return new Map();
+  }
+}
+
+function tabRecency(tab, now) {
+  if (tab.active || tab.audible) return now;
+  return tab.lastAccessed ?? 0;
+}
+
+function buildWorkflows(tabs, origins, now) {
+  const tabsById = new Map(tabs.map(tab => [tab.id, tab]));
+  const workflowsById = new Map();
+
+  for (const cluster of TabKillerWorkflows.cluster(tabs, origins)) {
+    const ages = cluster.tabs
+      .map(tab => (tab.audible ? 0 : tabAge(tab, now)))
+      .filter(age => age !== null);
+    const hub = cluster.hubTabId === null ? null : tabsById.get(cluster.hubTabId);
+
+    const workflow = {
+      id: cluster.id,
+      tabs: cluster.tabs,
+      startedAt: cluster.startedAt,
+      title: (hub || cluster.tabs[0]).title || t('fallback.untitledTab'),
+      age: ages.length > 0 ? Math.min(...ages) : null,
+      recency: Math.max(...cluster.tabs.map(tab => tabRecency(tab, now))),
+    };
+
+    workflowsById.set(workflow.id, workflow);
+    for (const tab of cluster.tabs) tab.workflowId = workflow.id;
+  }
+
+  return workflowsById;
+}
+
+function workflowOf(tab, workflowsById) {
+  return tab.workflowId ? workflowsById.get(tab.workflowId) || null : null;
+}
+
+function formatClock(timestamp) {
+  const sameDay = new Date(timestamp).toDateString() === new Date().toDateString();
+  return new Intl.DateTimeFormat(getResolvedLocale() === 'zh' ? 'zh-CN' : 'en', {
+    ...(sameDay ? {} : { month: 'short', day: 'numeric' }),
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(timestamp);
 }
 
 // ─── Custom group rules ──────────────────────────────────────────────────────
@@ -980,6 +1047,45 @@ function buildAutoGroups(tabs) {
   return autoGroups;
 }
 
+// A bucket lists loose tabs and workflows side by side, most recently used first. A workflow
+// keeps its tabs in the order they were opened, since that order is the trail of the work.
+function buildBucketBlocks(tabs, snapshot) {
+  const looseTabs = [];
+  const workflowTabs = new Map();
+
+  for (const tab of tabs) {
+    const workflow = workflowOf(tab, snapshot.workflowsById);
+    if (!workflow) {
+      looseTabs.push(tab);
+      continue;
+    }
+    if (!workflowTabs.has(workflow.id)) workflowTabs.set(workflow.id, []);
+    workflowTabs.get(workflow.id).push(tab);
+  }
+
+  const workflows = [...workflowTabs.entries()].map(([id, matched]) => {
+    const workflow = snapshot.workflowsById.get(id);
+    const order = new Map(workflow.tabs.map((tab, index) => [tab.id, index]));
+    return {
+      key: `workflow:${id}`,
+      kind: 'workflow',
+      title: workflow.title,
+      caption: t('section.workflow', { time: formatClock(workflow.startedAt) }),
+      totalCount: workflow.tabs.length,
+      recency: workflow.recency,
+      tabs: matched.sort((left, right) => order.get(left.id) - order.get(right.id)),
+      park: { kind: 'workflow', label: workflow.title },
+    };
+  });
+
+  const blocks = [
+    ...looseTabs.map(tab => ({ kind: 'tab', tab, tabs: [tab], recency: tabRecency(tab, snapshot.now) })),
+    ...workflows.map(workflow => ({ kind: 'workflow', workflow, tabs: workflow.tabs, recency: workflow.recency })),
+  ].sort((left, right) => right.recency - left.recency || sortTabs(left.tabs[0], right.tabs[0]));
+
+  return { blocks, workflows };
+}
+
 function buildSections(snapshot) {
   const match = tab => matchesQuery(tab, state.query);
 
@@ -994,21 +1100,27 @@ function buildSections(snapshot) {
 
     for (const tab of snapshot.tabs) {
       if (!match(tab)) continue;
-      const freshness = freshnessOf(tabAge(tab, snapshot.now));
+      const workflow = workflowOf(tab, snapshot.workflowsById);
+      const freshness = freshnessOf(workflow ? workflow.age : tabAge(tab, snapshot.now));
       buckets.find(bucket => bucket.freshness.includes(freshness)).tabs.push(tab);
     }
 
     return buckets
       .filter(bucket => bucket.tabs.length > 0)
-      .map(bucket => ({
-        key: bucket.key,
-        kind: 'bucket',
-        title: bucket.title,
-        caption: '',
-        tone: bucket.freshness[0],
-        tabs: bucket.tabs.sort(sortByLastUsed),
-        park: { kind: 'idle', label: bucket.title },
-      }));
+      .map(bucket => {
+        const { blocks, workflows } = buildBucketBlocks(bucket.tabs, snapshot);
+        return {
+          key: bucket.key,
+          kind: 'bucket',
+          title: bucket.title,
+          caption: '',
+          tone: bucket.freshness[0],
+          tabs: blocks.flatMap(block => block.tabs),
+          blocks,
+          children: workflows,
+          park: { kind: 'idle', label: bucket.title },
+        };
+      });
   }
 
   const { ruleGroups, unmatched } = assignRuleGroups(snapshot.ungroupedTabs, state.rules);
@@ -1105,10 +1217,58 @@ function renderTabRow(tab, now) {
   `;
 }
 
+function renderSectionActions(sectionData) {
+  return `
+    <div class="section-actions">
+      <button class="text-button" type="button" data-action="park-section" ${sectionData}>
+        ${ICONS.park}<span>${escapeHtml(t('button.park'))}</span>
+      </button>
+      ${renderIconButton({ action: 'copy-section', icon: 'copy', label: t('button.copy'), data: sectionData })}
+      ${renderIconButton({ action: 'close-section', icon: 'close', label: t('button.closeAll'), variant: 'is-danger', data: sectionData })}
+    </div>
+  `;
+}
+
+function renderWorkflow(workflow, now) {
+  const sectionData = `data-section-key="${escapeHtml(workflow.key)}"`;
+  const count = workflow.tabs.length === workflow.totalCount
+    ? String(workflow.totalCount)
+    : `${workflow.tabs.length}/${workflow.totalCount}`;
+
+  return `
+    <div class="workflow" ${sectionData}>
+      <div class="workflow-head">
+        <span class="workflow-title" title="${escapeHtml(workflow.title)}">${escapeHtml(workflow.title)}</span>
+        <span class="section-caption">${escapeHtml(workflow.caption)}</span>
+        <span class="section-count">${escapeHtml(count)}</span>
+        ${renderSectionActions(sectionData)}
+      </div>
+      <div class="workflow-rows">${workflow.tabs.map(tab => renderTabRow(tab, now)).join('')}</div>
+    </div>
+  `;
+}
+
+// Collapsed sections stop at about SECTION_ROW_LIMIT rows, but never cut a workflow in half.
+function renderSectionRows(section, expanded, now) {
+  if (!section.blocks) {
+    const visibleTabs = expanded ? section.tabs : section.tabs.slice(0, SECTION_ROW_LIMIT);
+    return { html: visibleTabs.map(tab => renderTabRow(tab, now)).join(''), shown: visibleTabs.length };
+  }
+
+  const parts = [];
+  let shown = 0;
+  for (const block of section.blocks) {
+    if (!expanded && shown > 0 && shown + block.tabs.length > SECTION_ROW_LIMIT) break;
+    parts.push(block.kind === 'workflow' ? renderWorkflow(block.workflow, now) : renderTabRow(block.tab, now));
+    shown += block.tabs.length;
+  }
+  return { html: parts.join(''), shown };
+}
+
 function renderSection(section, now) {
   const expanded = state.query || state.expandedSections.has(section.key);
-  const visibleTabs = expanded ? section.tabs : section.tabs.slice(0, SECTION_ROW_LIMIT);
-  const hiddenCount = section.tabs.length - visibleTabs.length;
+  const rows = renderSectionRows(section, expanded, now);
+  const hiddenCount = section.tabs.length - rows.shown;
   const style = section.accent
     ? ` style="--section-accent:${section.accent};--section-ring:${alphaColor(section.accent, 0.28)};"`
     : '';
@@ -1121,15 +1281,9 @@ function renderSection(section, now) {
         <h2 class="section-title">${escapeHtml(section.title)}</h2>
         ${section.caption ? `<span class="section-caption">${escapeHtml(section.caption)}</span>` : ''}
         <span class="section-count">${section.tabs.length}</span>
-        <div class="section-actions">
-          <button class="text-button" type="button" data-action="park-section" ${sectionData}>
-            ${ICONS.park}<span>${escapeHtml(t('button.park'))}</span>
-          </button>
-          ${renderIconButton({ action: 'copy-section', icon: 'copy', label: t('button.copy'), data: sectionData })}
-          ${renderIconButton({ action: 'close-section', icon: 'close', label: t('button.closeAll'), variant: 'is-danger', data: sectionData })}
-        </div>
+        ${renderSectionActions(sectionData)}
       </header>
-      <div class="section-rows">${visibleTabs.map(tab => renderTabRow(tab, now)).join('')}</div>
+      <div class="section-rows">${rows.html}</div>
       ${hiddenCount > 0 ? `
         <button class="more-button" type="button" data-action="show-more" ${sectionData}>
           ${escapeHtml(t('button.showMore', { count: hiddenCount }))}
@@ -1183,7 +1337,9 @@ function renderBoard() {
   if (!snapshot) return;
 
   const sections = buildSections(snapshot);
-  state.sections = new Map(sections.map(section => [section.key, section]));
+  state.sections = new Map(
+    sections.flatMap(section => [section, ...(section.children || [])]).map(section => [section.key, section]),
+  );
 
   const focus = captureRowFocus();
   document.getElementById('sections').innerHTML = sections.map(section => renderSection(section, snapshot.now)).join('');
@@ -2000,6 +2156,11 @@ function bindChromeListeners() {
   chrome.tabGroups.onUpdated.addListener(requestRender);
 
   chrome.storage.onChanged.addListener((changes, area) => {
+    // The service worker records each tab's opening a moment after onCreated reaches this page.
+    if (area === 'session') {
+      if (Object.keys(changes).some(key => key.startsWith(TabKillerWorkflows.PREFIX))) requestRender();
+      return;
+    }
     if (area !== 'local') return;
     if (Object.keys(changes).some(key => key.startsWith(TabKillerSessions.PREFIX))) refreshSessions();
 

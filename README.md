@@ -31,7 +31,8 @@ Tab Killer is not a bookmark manager or a workspace platform. It answers two que
 - Each row shows how long ago you last used the tab (Chrome 121+ `lastAccessed`)
 - Rows fade as they age; amber marks 7 days+, red marks 30 days+
 - **By last used** view buckets tabs into today, this week, idle 7 days+, idle 30 days+
-- **Park N idle** in the top bar parks every unpinned, silent, inactive tab older than 7 days
+- **Workflows**: in that view, tabs you opened in one burst stay together. Three or more tabs count as one workflow when each was opened within 3 minutes of the previous one in the same window, or from another tab in the workflow (Cmd+click) within 30 minutes; one workflow spans at most 30 minutes. A workflow sits in the bucket of its most recently used tab, and can be parked, copied, or closed as one. Opening times are kept in session storage, so they reset when Chrome restarts and tabs opened before that do not form workflows
+- **Park N idle** in the top bar parks every unpinned, silent, inactive tab older than 7 days, but leaves a workflow alone while any tab in it is still in use
 
 ### Grouping
 

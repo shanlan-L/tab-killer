@@ -578,6 +578,68 @@ kbd {
   gap: 2px;
 }
 
+/* ─── Workflows: tabs opened in one burst, nested inside an idle bucket ─────── */
+
+.workflow {
+  transition: opacity 160ms ease-in, transform 160ms ease-in;
+}
+
+.workflow.is-leaving {
+  opacity: 0;
+  transform: translateX(18px);
+}
+
+.workflow-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--row-h);
+  padding-left: var(--space-2);
+}
+
+.workflow-head::before {
+  content: "###";
+  flex: 0 0 auto;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.workflow-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workflow-head .section-caption,
+.workflow-head .section-count {
+  flex-shrink: 0;
+}
+
+/* A rule down the left ties the rows to their workflow; columns stay aligned with loose rows. */
+.workflow-rows {
+  position: relative;
+  margin-bottom: var(--space-1);
+}
+
+.workflow-rows::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  left: 15px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.workflow .tab-focus {
+  padding-left: 26px;
+}
+
 /* ─── Rows ────────────────────────────────────────────────────────────────── */
 
 .tab-row {
@@ -1177,6 +1239,24 @@ kbd {
   .board-section:hover .section-actions .icon-button,
   .section-head:focus-within .icon-button {
     opacity: 1;
+  }
+
+  /* A workflow's actions wait for its own header, not the whole bucket. */
+  .workflow-head .section-actions .text-button,
+  .board-section:hover .workflow-head .section-actions .icon-button {
+    opacity: 0;
+    transition: opacity 100ms var(--ease-out);
+  }
+
+  .board-section .workflow-head:hover .section-actions .text-button,
+  .board-section .workflow-head:hover .section-actions .icon-button,
+  .board-section .workflow-head:focus-within .section-actions .text-button,
+  .board-section .workflow-head:focus-within .section-actions .icon-button {
+    opacity: 1;
+  }
+
+  .workflow-head:hover {
+    background: var(--row-hover);
   }
 
   .tab-row:hover {

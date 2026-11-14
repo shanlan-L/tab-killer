@@ -7,7 +7,7 @@
  * service worker can write at the same time without overwriting each other's list.
  *
  * Session shape:
- *   { id, kind: 'window' | 'group' | 'domain' | 'idle' | 'tab', label, color, createdAt,
+ *   { id, kind: 'window' | 'group' | 'domain' | 'idle' | 'workflow' | 'tab', label, color, createdAt,
  *     tabs: [{ url, title }] }
  */
 (function (root) {

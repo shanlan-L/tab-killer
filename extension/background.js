@@ -11,7 +11,7 @@
  *   Red    (#b35a5a) → 21+ tabs   (time to cull!)
  */
 
-importScripts('sessions.js');
+importScripts('sessions.js', 'workflows.js');
 
 const DASHBOARD_URL = chrome.runtime.getURL('index.html');
 
@@ -115,14 +115,24 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// Update badge whenever a tab is opened
-chrome.tabs.onCreated.addListener(() => {
+function logWorkflowError(error) {
+  console.error('[tab-killer] failed to record tab origin', error);
+}
+
+// Update badge whenever a tab is opened, and note when it was opened for workflow grouping
+chrome.tabs.onCreated.addListener(tab => {
   updateBadge();
+  TabKillerWorkflows.recordCreated(tab).catch(logWorkflowError);
 });
 
 // Update badge whenever a tab is closed
-chrome.tabs.onRemoved.addListener(() => {
+chrome.tabs.onRemoved.addListener(tabId => {
   updateBadge();
+  TabKillerWorkflows.forget(tabId).catch(logWorkflowError);
+});
+
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
+  TabKillerWorkflows.replace(addedTabId, removedTabId).catch(logWorkflowError);
 });
 
 // Update badge when a tab's URL changes (e.g. navigating to/from chrome://)
@@ -134,3 +144,6 @@ chrome.tabs.onUpdated.addListener(() => {
 
 // Run once immediately when the service worker first loads
 updateBadge();
+
+// Start the restart grace period as soon as the worker wakes, not at the first new tab.
+TabKillerWorkflows.getSessionStart().catch(logWorkflowError);
